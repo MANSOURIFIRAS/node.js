@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="notification"></div>
+
+    <div class="chat-container">
+      <div class="message outgoing">
+        <div class="message-content">
+          <p>Hey, how are you?</p>
+          <span class="message-timestamp">10:00 AM</span>
+        </div>
+      </div>
+      <div class="message incoming">
+        <div class="message-content">
+          <p>I'm good, thanks for asking!</p>
+          <span class="message-timestamp">10:02 AM</span>
+        </div>
+      </div>
+      <div id="chat-messages"></div>
+      <form id="chat-form">
+        <input type="text" id="message-input" placeholder="Type a message..." />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+
+      var socket = io();
+
+      // Get references to HTML elements
+      var messageInput = document.getElementById('message-input');
+      var chatForm = document.getElementById('chat-form');
+      var chatMessages = document.getElementById('chat-messages');
+
+      // Function to create and append a new message element to the chat
+      function appendMessage(message, isOutgoing) {
+        var messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        // messageElement.classList.add(isOutgoing ? 'outgoing' : 'incoming');
+
+        if (isOutgoing) {
+          messageElement.classList.add('outgoing');
+        } 
+        else {
+          messageElement.classList.add('incoming');
+        }
+
+        var messageContent = document.createElement('div');
+        messageContent.classList.add('message-content');
+
+        var messageText = document.createElement('p');
+        messageText.textContent = message;
+
+        var messageTimestamp = document.createElement('span');
+        messageTimestamp.classList.add('message-timestamp');
+        messageTimestamp.textContent = formatTimestamp(new Date());
+
+        messageContent.appendChild(messageText);
+        messageContent.appendChild(messageTimestamp);
+        messageElement.appendChild(messageContent);
+        chatMessages.appendChild(messageElement);
+
+        
+      }
+
+      // Format the timestamp as "HH:MM AM/PM"
+      function formatTimestamp(timestamp) {
+        var hours = timestamp.getHours();
+        var minutes = timestamp.getMinutes();
+        var ampm = hours >= 12 ? 'PM' : 'AM';
+
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        minutes = minutes < 10 ? '0' + minutes : minutes;
+
+        return hours + ':' + minutes + ' ' + ampm;
+      }
+
+      // Handle form submission event
+      chatForm.addEventListener('submit', function (event) {
+        event.preventDefault(); // Prevent form submission
+
+        var message = messageInput.value; // Get the message from the input field
+        if (message.trim() !== '') {
+          // Send the message to the server
+          socket.emit('chat message', message);
+          appendMessage(message, true); // Display the sent message on the sender's screen
+        }
+
+        messageInput.value = ''; // Clear the input field
+      });
+
+        // Show notification
+        function showNotification(message) {
+        notification.textContent = message;
+        notification.style.display = 'block';
+
+        setTimeout(function () {
+          notification.style.display = 'none';
+        }, 2000);
+      }
+
+      // Handle incoming messages from the server
+      socket.on('chat message', function (message) {
+        // Append the received message to the chat
+        appendMessage(message, false);
+      });
+
+      // Handle user connection event
+      socket.on('user connected', function () {
+        showNotification('user connected');
+      });
+
+      // Handle user disconnection event
+      socket.on('user disconnected', function () {
+        showNotification('user disconnected');
+      });
+
+      // Handle user typing event
+      messageInput.addEventListener('keyup', function () {
+        socket.emit('typing');
+      });
+
+      // Handle user stopped typing event
+      messageInput.addEventListener('keydown', function () {
+        socket.emit('stopped typing');
+      });
+
+      // Handle incoming typing event
+      socket.on('typing', function () {
+        showNotification('User is typing...');
+      });
+
+      // Handle incoming stopped typing event
+      socket.on('stopped typing', function () {
+        showNotification('');
+      });
+    </script>
+
+  </body>
+</html>
